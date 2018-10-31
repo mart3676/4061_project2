@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
 	// You will need to get user name as a parameter, argv[1].
 
-	if(connect_to_server("YOUR_UNIQUE_ID", argv[1], pipe_user_reading_from_server, pipe_user_writing_to_server) == -1) {
+	if (connect_to_server("YOUR_UNIQUE_ID", argv[1], pipe_user_reading_from_server, pipe_user_writing_to_server) == -1) {
 		exit(-1);
 	}
 
@@ -34,15 +34,15 @@ int main(int argc, char * argv[]) {
 	char buffer[MAX_MSG];
 	count = read(0, buffer, MAX_MSG);
 
-	if(count < 0 && errno == EAGAIN){
+	if (count < 0 && errno == EAGAIN){
 		// no data available
 		// set errno to EAGAIN
-	}else if(count >= 0 ){
+	} else if(count >= 0 ){
 		// there is data
 		int a = write(pipe_user_writing_to_server[1], buffer, count);
 		//printf(" what I read is %s, I read %d bytes, I wrote %d bytes\n", buffer, count, a);
 
-	}else{
+	} else {
 		// some error occurred during reading
  	}
 }

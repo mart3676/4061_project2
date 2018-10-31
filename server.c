@@ -16,8 +16,8 @@ int find_empty_slot(USER * user_list) {
 	// iterate through the user_list and check m_status to see if any slot is EMPTY
 	// return the index of the empty slot
     int i = 0;
-	for(i=0;i<MAX_USER;i++) {
-    	if(user_list[i].m_status == SLOT_EMPTY) {
+	for (i=0;i < MAX_USER; i++) {
+    	if (user_list[i].m_status == SLOT_EMPTY) {
 			return i;
 		}
 	}
@@ -255,7 +255,7 @@ int main(int argc, char * argv[])
 
     if(result != -1){
       //new user
-      
+
       pipe(pipe_SERVER_writing_to_child);
       pipe(pipe_SERVER_reading_from_child);
 

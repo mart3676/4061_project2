@@ -253,7 +253,7 @@ int main(int argc, char * argv[])
     int pipe_SERVER_reading_from_child[2];
     int pipe_SERVER_writing_to_child[2];
 
-    if(result != -1){
+    if (result != -1) {
       //new user
 
       pipe(pipe_SERVER_writing_to_child);
@@ -263,14 +263,14 @@ int main(int argc, char * argv[])
       add_user(1, user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
     }
     // Handling a new connection using get_connection
-		if(_pid > 0){
+		if (_pid > 0) {
       int readbytes = read(pipe_SERVER_writing_to_child[0], buf, MAX_MSG);
       if(readbytes > 0){
         printf("%s\n", buf);
       }
-    }else{
+    } else {
       int readbytes2 = read(pipe_user_to_child[0], buf, MAX_MSG);
-      if(readbytes2 > 0){
+      if (readbytes2 > 0) {
 
         printf("%s\n", buf);
       }

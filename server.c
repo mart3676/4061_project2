@@ -272,7 +272,8 @@ int main(int argc, char * argv[])
       int readbytes2 = read(pipe_user_to_child[0], buf, MAX_MSG);
       if (readbytes2 > 0) {
 
-        printf("%s\n", buf);
+        printf("%s in child ", buf);
+	buf[0] = '\0';
       }
 
     // Check max user and same user id

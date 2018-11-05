@@ -86,6 +86,7 @@ int add_user(int idx, USER * user_list, int pid, char * user_id, int pipe_to_chi
 void kill_user(int idx, USER * user_list) {
 	// kill a user (specified by idx) by using the systemcall kill()
 	// then call waitpid on the user
+
 }
 
 /*
@@ -94,10 +95,17 @@ void kill_user(int idx, USER * user_list) {
 void cleanup_user(int idx, USER * user_list)
 {
 	// m_pid should be set back to -1
+  _userInfo.m_pid = -1;
 	// m_user_id should be set to zero, using memset()
+  memset(_userInfo.m_user_id[idx] = 0);
 	// close all the fd
+  close(_userInfo.m_fd_to_user);
+  close(_userInfo.m_fd_to_server);
 	// set the value of all fd back to -1
+  _userInfo.m_fd_to_user = -1;
+  _userInfo.m_fd_to_server = -1;
 	// set the status back to empty
+  slot_status->SLOT_EMPTY = 1; // unsure of syntax
 }
 
 /*
@@ -106,6 +114,9 @@ void cleanup_user(int idx, USER * user_list)
 void kick_user(int idx, USER * user_list) {
 	// should kill_user()
 	// then perform cleanup_user()
+  kill_user(idx, user_list);
+  cleanup_user(idx, user_list);
+  
 }
 
 /*

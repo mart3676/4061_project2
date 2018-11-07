@@ -95,17 +95,17 @@ void kill_user(int idx, USER * user_list) {
 void cleanup_user(int idx, USER * user_list)
 {
 	// m_pid should be set back to -1
-  _userInfo.m_pid = -1;
+  user_list[idx].m_pid = -1;
 	// m_user_id should be set to zero, using memset()
-  memset(_userInfo.m_user_id[idx] = 0);
+  memset(user_list[idx].m_user_id, 0, MAX_USER_ID);
 	// close all the fd
-  close(_userInfo.m_fd_to_user);
-  close(_userInfo.m_fd_to_server);
+  close(user_list[idx].m_fd_to_user);
+  close(user_list[idx].m_fd_to_server);
 	// set the value of all fd back to -1
-  _userInfo.m_fd_to_user = -1;
-  _userInfo.m_fd_to_server = -1;
+  user_list[idx].m_fd_to_user = -1;
+  user_list[idx].m_fd_to_server = -1;
 	// set the status back to empty
-  slot_status->SLOT_EMPTY = 1; // unsure of syntax
+  user_list[idx].m_status = SLOT_EMPTY; //arrow?
 }
 
 /*
@@ -116,7 +116,7 @@ void kick_user(int idx, USER * user_list) {
 	// then perform cleanup_user()
   kill_user(idx, user_list);
   cleanup_user(idx, user_list);
-  
+
 }
 
 /*

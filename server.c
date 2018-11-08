@@ -15,7 +15,7 @@
 int find_empty_slot(USER * user_list) {
 	// iterate through the user_list and check m_status to see if any slot is EMPTY
 	// return the index of the empty slot
-    int i = 0;
+  int i = 0;
 	for (i=0;i < MAX_USER; i++) {
     	if (user_list[i].m_status == SLOT_EMPTY) {
 			return i;
@@ -77,7 +77,17 @@ int add_user(int idx, USER * user_list, int pid, char * user_id, int pipe_to_chi
 {                                                                 //server to child  , child to serverd
 	// populate the user_list structure with the arguments passed to this function
 	// return the index of user added
-	return 0;
+  USER newUser = {};
+  newUser.m_pid = pid;
+  strncpy(newUser.m_user_id, user_id, MAX_USER_ID);
+  newUser.m_fd_to_user = pipe_to_child;
+  newUser.m_fd_to_server = pipe_to_parent;
+  newUser.m_status = SLOT_FULL;
+
+  user_list[idx] = newUser;
+  // printf("pipes3: %d,%d\n", newUser.m_fd_to_user, newUser.m_fd_to_server);
+
+	return idx;
 }
 
 /*
@@ -85,20 +95,7 @@ int add_user(int idx, USER * user_list, int pid, char * user_id, int pipe_to_chi
  */
 void kill_user(int idx, USER * user_list) {
 	// kill a user (specified by idx) by using the systemcall kill()
-  close(user_list[idx].m_fd_to_user);
-  close(user_list[idx].m_fd_to_server);
-
-  int kill_result = kill(user_list[idx].m_pid, SIGINT);
-  printf("Kill result: %d\n", kill_result);
-
 	// then call waitpid on the user
-  int status;
-  int pid;
-  pid = waitpid(user_list[idx].m_pid, &status, WNOHANG);
-
-  if(WIFSIGNALED(status)){
-    printf("Child process %d terminated with signal %d\n", pid,WTERMSIG(status));
-  }
 
 }
 
@@ -140,6 +137,11 @@ int broadcast_msg(USER * user_list, char *buf, char *sender)
 	//iterate over the user_list and if a slot is full, and the user is not the sender itself,
 	//then send the message to that user
 	//return zero on success
+  for (int i = 0; i < sizeof(user_list); i++) {
+    if(user_list[i].m_user_id != sender){
+      write(user_list[i].m_fd_to_user, buf, MAX_MSG);
+    }
+  }
 	return 0;
 }
 
@@ -239,7 +241,7 @@ void init_user_list(USER * user_list) {
 	//set all fd to -1
 	//set the status to be EMPTY
 	int i=0;
-	for(i=0;i<MAX_USER;i++) {
+	for(i=0;i< MAX_USER;i++) {
 		user_list[i].m_pid = -1;
 		memset(user_list[i].m_user_id, '\0', MAX_USER_ID); // memset(void *ptr, int x, size_t n)
 		user_list[i].m_fd_to_user = -1;
@@ -255,50 +257,113 @@ void init_user_list(USER * user_list) {
 int main(int argc, char * argv[])
 {
 	int nbytes;
-	setup_connection("YOUR_UNIQUE_ID"); // Specifies the connection point as argument.
+  // if (argc < 1){
+  //   exit(1); //user didnt enter a server name
+  // }
+	setup_connection("ourserver"); // Specifies the connection point as argument.
 
 	USER user_list[MAX_USER];
-	init_user_list(user_list);   // Initialize user list
 
-	char buf[MAX_MSG];
+	init_user_list(user_list);   // Initialize user list
+  for(int i = 0; i < MAX_USER; i++){
+    printf("slot: %d\n", user_list[i].m_status);
+  }
+
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL)| O_NONBLOCK);
 	print_prompt("admin");
 
 	//
 	while(1) {
 		/* ------------------------YOUR CODE FOR MAIN--------------------------------*/
-
-
-    int pipe_user_to_child[2];
-    int pipe_child_to_user[2];
     char user_id[MAX_USER_ID];
-    int result = get_connection(user_id, pipe_child_to_user, pipe_user_to_child);
+    char buf[MAX_MSG];
     int _pid;
-    int pipe_SERVER_reading_from_child[2];
-    int pipe_SERVER_writing_to_child[2];
+    int pipe_child_writing_to_user[2];
+    int pipe_child_reading_from_user[2];
+    int result = get_connection(user_id, pipe_child_writing_to_user, pipe_child_reading_from_user);
+
+
+    // int pipe_user_to_child[2];
+    // int pipe_child_to_user[2];
+    // char user_id[MAX_USER_ID];
+    // int result = get_connection(user_id, pipe_child_to_user, pipe_user_to_child);
+    // int _pid;
+    // int status;
+    // int pipe_SERVER_reading_from_child[2];
+    // int pipe_SERVER_writing_to_child[2];
 
     if (result != -1) {
-      //new user
+      // printf("pipes2: %d,%d\n", pipe_child_writing_to_user[1], pipe_child_reading_from_user[0]);
+      // printf("%s\n", user_id);
 
+      //new user
+      int status;
+      int pipe_SERVER_reading_from_child[2];
+      int pipe_SERVER_writing_to_child[2];
       pipe(pipe_SERVER_writing_to_child);
       pipe(pipe_SERVER_reading_from_child);
 
       _pid = fork();
-      add_user(1, user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
+      printf("pid: %d\n", _pid);
+      if (_pid == 0){
+        add_user(find_empty_slot(user_list), user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
+        printf("user added\n");
+        // printf("user pipes: %d,%d\n", pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
+      } else { // parent process
+        for(int i = 0; i < MAX_USER; i++) {
+          if(user_list[i].m_user_id == user_id) {
+            printf("status: %d\n", user_list[i].m_status);
+          }
+          if(user_list[i].m_status == SLOT_FULL){
+            // printf("yo%d\n", user_list[i].m_pid);
+            // printf("pipes3: %d,%d\n", user_list[i].m_fd_to_server, user_list[i].m_fd_to_user);
+            int bytesread = read(user_list[i].m_fd_to_server, buf, MAX_MSG);
+            printf("message: %s\n", buf);
+            if (bytesread > 0) {
+              // printf("message: %s\n", buf);
+              broadcast_msg(user_list, buf, user_list[i].m_user_id);
+            }
+          }
+        }
+      }
+      wait(&status);
     }
-    // Handling a new connection using get_connection
-		if (_pid > 0) {
-      int readbytes = read(pipe_SERVER_writing_to_child[0], buf, MAX_MSG);
-      if(readbytes > 0){
-        printf("%s\n", buf);
-      }
-    } else {
-      int readbytes2 = read(pipe_user_to_child[0], buf, MAX_MSG);
-      if (readbytes2 > 0) {
 
-        printf("%s in child ", buf);
-	buf[0] = '\0';
-      }
+    // printf("hiiiii\n");
+    //handle messages
+    // if(_pid < 0){
+      // printf("in child\n");
+
+    // }
+    // Handling a new connection using get_connection
+	// 	if (_pid > 0) {
+  //     printf("in parent\n");
+  //     char buf[MAX_MSG];
+  //     int readbytes = read(pipe_SERVER_reading_from_child[0], buf, MAX_MSG);
+  //     if(readbytes > 0){
+  //       write(pipe_SERVER_writing_to_child[0], buf, MAX_MSG);
+  //       printf("%s\n", buf);
+  //     }
+  //   } else {
+  //     printf("in child\n");
+  //     pipe(pipe_user_to_child);
+  //     pipe(pipe_child_to_user);
+  //     char buf[MAX_MSG];
+  //     int readbytes2 = read(pipe_user_to_child[0], buf, MAX_MSG);
+  //     printf("readbytes2: %d\n", readbytes2);
+  //     int readbytes3 = read(pipe_SERVER_writing_to_child[0], buf, MAX_MSG);
+  //     printf("readbytes3: %d\n", readbytes3);
+  //     if (readbytes2 > 0) {
+  //       write(pipe_SERVER_reading_from_child[0], buf, MAX_MSG);
+  //       printf(buf);
+	// //buf[0] = '\0';
+  //     }
+  //     if (readbytes3 > 0) {
+  //       write(pipe_child_to_user[0], buf, MAX_MSG);
+  //       printf(buf);
+  //     }
+  //   }
+  //   _pid = wait(&status);
 
     // Check max user and same user id
 
@@ -309,7 +374,6 @@ int main(int argc, char * argv[])
 		// Poll stdin (input from the terminal) and handle admnistrative command
 
 		/* ------------------------YOUR CODE FOR MAIN--------------------------------*/
-	}
-}
+  }
 }
 /* --------------------End of the main function ----------------------------------------*/

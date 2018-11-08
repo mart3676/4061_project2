@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
 	// You will need to get user name as a parameter, argv[1].
 
-	if (connect_to_server("YOUR_UNIQUE_ID", argv[1], pipe_user_reading_from_server, pipe_user_writing_to_server) == -1) {
+	if (connect_to_server("ourserver", argv[1], pipe_user_reading_from_server, pipe_user_writing_to_server) == -1) {
 		exit(-1);
 	}
 
@@ -40,11 +40,17 @@ int main(int argc, char * argv[]) {
 	} else if(count >= 0 ){
 		// there is data
 		int a = write(pipe_user_writing_to_server[1], buffer, count);
-		//printf(" what I read is %s, I read %d bytes, I wrote %d bytes\n", buffer, count, a);
+		printf(" what I read is %s, I read %d bytes, I wrote %d bytes\n", buffer, count, a);
 
 	} else {
 		// some error occurred during reading
  	}
+
+	char buffer2[MAX_MSG];
+	int otherbytes = read(pipe_user_reading_from_server[0], buffer2, MAX_MSG);
+	if (otherbytes > 0) {
+		printf("%s\n", buffer2);
+	}
 }
 return 0;
 	/* -------------- YOUR CODE ENDS HERE -----------------------------------*/

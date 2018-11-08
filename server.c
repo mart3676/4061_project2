@@ -85,7 +85,20 @@ int add_user(int idx, USER * user_list, int pid, char * user_id, int pipe_to_chi
  */
 void kill_user(int idx, USER * user_list) {
 	// kill a user (specified by idx) by using the systemcall kill()
+  close(user_list[idx].m_fd_to_user);
+  close(user_list[idx].m_fd_to_server);
+
+  int kill_result = kill(user_list[idx].m_pid, SIGINT);
+  printf("Kill result: %d\n", kill_result);
+
 	// then call waitpid on the user
+  int status;
+  int pid;
+  pid = waitpid(user_list[idx].m_pid, &status, WNOHANG);
+
+  if(WIFSIGNALED(status)){
+    printf("Child process %d terminated with signal %d\n", pid,WTERMSIG(status));
+  }
 
 }
 

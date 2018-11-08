@@ -265,9 +265,9 @@ int main(int argc, char * argv[])
 	USER user_list[MAX_USER];
 
 	init_user_list(user_list);   // Initialize user list
-  for(int i = 0; i < MAX_USER; i++){
-    printf("slot: %d\n", user_list[i].m_status);
-  }
+  // for(int i = 0; i < MAX_USER; i++){
+  //   printf("slot: %d\n", user_list[i].m_status);
+  // }
 
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL)| O_NONBLOCK);
 	print_prompt("admin");
@@ -282,16 +282,6 @@ int main(int argc, char * argv[])
     int pipe_child_reading_from_user[2];
     int result = get_connection(user_id, pipe_child_writing_to_user, pipe_child_reading_from_user);
 
-
-    // int pipe_user_to_child[2];
-    // int pipe_child_to_user[2];
-    // char user_id[MAX_USER_ID];
-    // int result = get_connection(user_id, pipe_child_to_user, pipe_user_to_child);
-    // int _pid;
-    // int status;
-    // int pipe_SERVER_reading_from_child[2];
-    // int pipe_SERVER_writing_to_child[2];
-
     if (result != -1) {
       // printf("pipes2: %d,%d\n", pipe_child_writing_to_user[1], pipe_child_reading_from_user[0]);
       // printf("%s\n", user_id);
@@ -304,12 +294,19 @@ int main(int argc, char * argv[])
       pipe(pipe_SERVER_reading_from_child);
 
       _pid = fork();
-      printf("pid: %d\n", _pid);
+      //printf("pid: %d\n", _pid);
+
       if (_pid == 0){
         add_user(find_empty_slot(user_list), user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
         printf("user added\n");
+
+        for(int i = 0; i < MAX_USER; i++){ // show slot statuses
+          printf("slot: %d\n", user_list[i].m_status);
+        }
         // printf("user pipes: %d,%d\n", pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
+
       } else { // parent process
+
         for(int i = 0; i < MAX_USER; i++) {
           if(user_list[i].m_user_id == user_id) {
             printf("status: %d\n", user_list[i].m_status);

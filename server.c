@@ -95,7 +95,6 @@ int add_user(int idx, USER * user_list, int pid, char * user_id, int pipe_to_chi
 
    // kill a user (specified by idx) by using the systemcall kill()
    int kill_result = kill(user_list[idx].m_pid, SIGKILL);
-   printf("Kill result inside kill_user: %d\n", kill_result);
 
    if(kill_result == -1){
      printf("USER is not killed\n" );
@@ -339,12 +338,35 @@ int main(int argc, char * argv[])
               if(_pid > 0){
                 add_user(index, user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
                 printf(" %d new user added %s\n", index, user_id );
+                close(pipe_user_to_child[1]);
+                close(pipe_child_to_user[1]);
+                close(pipe_user_to_child[0]);
+                close(pipe_child_to_user[0]);
+                close(pipe_SERVER_writing_to_child[0]);
+                close(pipe_SERVER_reading_from_child[1]);
+              }else{
+                close(pipe_user_to_child[1]);
+                close(pipe_child_to_user[0]);
+                close(pipe_SERVER_writing_to_child[1]);
+                close(pipe_SERVER_reading_from_child[0]);
               }
             }else{
               printf("chat is full\n" );
+              write(pipe_user_to_child[1], "Chat is full", sizeof("Chat is full"));
+              close(pipe_user_to_child[1]);
+              close(pipe_child_to_user[1]);
+              close(pipe_user_to_child[0]);
+              close(pipe_child_to_user[0]);
+
             }
           }else{
             printf("User already exist\n" );
+            write(pipe_user_to_child[1], "User already exist", sizeof("User already exist"));
+            close(pipe_user_to_child[1]);
+            close(pipe_child_to_user[1]);
+            close(pipe_user_to_child[0]);
+            close(pipe_child_to_user[0]);
+
           }
         }
 
@@ -379,11 +401,7 @@ int main(int argc, char * argv[])
          int readbytesSTDINp = read(0,buf,MAX_MSG);
 
          if(readbytesSTDINp >0){
-            int xc = close(user_list[0].m_fd_to_user);
-            int xcc = close(user_list[0].m_fd_to_server);
-            if(xc == 0 && xcc == 0){
-              printf("ends closed in parent\n" );
-            }
+
            buf[strlen(buf)-1] = '\0';
            int commandType = get_command_type(buf);
 
@@ -393,16 +411,10 @@ int main(int argc, char * argv[])
                printf("somethig wrong in printing list\n" );
              }
            }else if(commandType == 1){
-             printf("need to kick\n");
              char kicking_user_name[MAX_USER_ID];
              extract_name(buf, kicking_user_name);
              int indx = find_user_index(user_list, kicking_user_name);
-             printf("index is: %d and user name is %s\n", indx, kicking_user_name );
              if(indx != -1){
-               // close(pipe_user_to_child[1]);
-               // close(pipe_child_to_user[1]);
-                printf("KICK BITCH\n");
-
                kick_user(indx, user_list);
              }
            }else if(commandType == 4){

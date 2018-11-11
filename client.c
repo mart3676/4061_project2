@@ -42,9 +42,10 @@ int main(int argc, char * argv[]) {
 			printf("%s\n", buffer);
 			memset(buffer, '\0', MAX_MSG);
 		}else if(count == 0){
+			// pipe from child is closed. So close all pipe and exit
 			close(pipe_user_reading_from_server[0]);
 			close(pipe_user_writing_to_server[1]);
-			printf("you are exited from the chat\n" );
+			printf("You are exited from the chat\n" );
 			exit(-1);
 		}
 

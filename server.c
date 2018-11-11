@@ -236,9 +236,10 @@ void send_p2p_msg(int idx, USER * user_list, char *buf)
   int indx = find_user_index(user_list, target_name);
   if(indx == -1){
     // if user not found, write back to the original user "User not found", using the write()function on pipes.
-    printf("p2p user not found\n" );
+    printf("p2p receiving user not found\n" );
     write(user_list[idx].m_fd_to_user, "User not found \n", sizeof("User not found \n"));
   }else{
+    //counting offset for text
     int j =0;
     int count =0;
     while(buf[j] != '\0' && count <2   ){
@@ -251,9 +252,7 @@ void send_p2p_msg(int idx, USER * user_list, char *buf)
     char send[MAX_MSG];
     sprintf(send,"p2p %s : %s",user_list[idx].m_user_id, buf );
     int wirten = write(user_list[indx].m_fd_to_user, send,strlen(send));
-    printf("p2p wrote %s to %d\n", user_list[indx].m_user_id, wirten);
   }
-
 }
 
 //takes in the filename of the file being executed, and prints an error message stating the commands and their usage
@@ -322,12 +321,24 @@ int main(int argc, char * argv[])
 
         int result = get_connection(user_id, pipe_child_to_user, pipe_user_to_child);
         fcntl(pipe_user_to_child[0], F_SETFL, fcntl(0,F_GETFL) | O_NONBLOCK); //nonblocking after get connection
-
+        int index;
         if (result != -1) {
+          if(find_user_index(user_list, user_id) != -1){
+            printf("User already exist\n" );
+            write(pipe_child_to_user[1], "User already exist", sizeof("User already exist"));
+            close(pipe_user_to_child[1]);
+            close(pipe_child_to_user[1]);
+            close(pipe_user_to_child[0]);
+            close(pipe_child_to_user[0]);
+          } else if((index =find_empty_slot(user_list)) == -1){
+            printf("chat is full\n" );
+            write(pipe_child_to_user[1], "Chat is full", sizeof("Chat is full"));
+            close(pipe_user_to_child[1]);
+            close(pipe_child_to_user[1]);
+            close(pipe_user_to_child[0]);
+            close(pipe_child_to_user[0]);
 
-          if(find_user_index(user_list, user_id) == -1){
-            int index =find_empty_slot(user_list);
-            if( index != -1){
+          }else{
               //adding new user
               pipe(pipe_SERVER_writing_to_child);
               pipe(pipe_SERVER_reading_from_child);
@@ -336,6 +347,7 @@ int main(int argc, char * argv[])
 
               _pid = fork();
               if(_pid > 0){
+                // parent process is closing all unused ends and add new user to list
                 add_user(index, user_list, _pid, user_id, pipe_SERVER_writing_to_child[1], pipe_SERVER_reading_from_child[0]);
                 printf(" %d new user added %s\n", index, user_id );
                 close(pipe_user_to_child[1]);
@@ -345,30 +357,14 @@ int main(int argc, char * argv[])
                 close(pipe_SERVER_writing_to_child[0]);
                 close(pipe_SERVER_reading_from_child[1]);
               }else{
+                // child process closing not used pipe ends
                 close(pipe_user_to_child[1]);
                 close(pipe_child_to_user[0]);
                 close(pipe_SERVER_writing_to_child[1]);
                 close(pipe_SERVER_reading_from_child[0]);
               }
-            }else{
-              printf("chat is full\n" );
-              write(pipe_user_to_child[1], "Chat is full", sizeof("Chat is full"));
-              close(pipe_user_to_child[1]);
-              close(pipe_child_to_user[1]);
-              close(pipe_user_to_child[0]);
-              close(pipe_child_to_user[0]);
-
             }
-          }else{
-            printf("User already exist\n" );
-            write(pipe_user_to_child[1], "User already exist", sizeof("User already exist"));
-            close(pipe_user_to_child[1]);
-            close(pipe_child_to_user[1]);
-            close(pipe_user_to_child[0]);
-            close(pipe_child_to_user[0]);
-
           }
-        }
 
         /*********polling: parent read from child ********/
         for(int i = 0 ; i< MAX_USER; i++){
@@ -382,10 +378,9 @@ int main(int argc, char * argv[])
               if(commandTypeU == 0){
                 int res = list_users(i, user_list);
                 if(res != 0){
-                  printf("somethig wrong in printing list\n" );
+                  printf("Error occurred in printing list\n" );
                 }
               }else if(commandTypeU == 2){
-                  printf("This is p2p \n");
                   send_p2p_msg(i, user_list, buf);
               }else if(commandTypeU == 4){
                 kick_user(i, user_list);
@@ -400,57 +395,72 @@ int main(int argc, char * argv[])
         /********* parent read from stdin ********/
          int readbytesSTDINp = read(0,buf,MAX_MSG);
 
-         if(readbytesSTDINp >0){
+         if(readbytesSTDINp >1){
+            buf[strlen(buf)-1] = '\0';
+            int commandType = get_command_type(buf);
 
-           buf[strlen(buf)-1] = '\0';
-           int commandType = get_command_type(buf);
-
-           if(commandType == 0){
-             int res = list_users(-1, user_list);
-             if(res != 0){
-               printf("somethig wrong in printing list\n" );
-             }
-           }else if(commandType == 1){
-             char kicking_user_name[MAX_USER_ID];
-             extract_name(buf, kicking_user_name);
-             int indx = find_user_index(user_list, kicking_user_name);
-             if(indx != -1){
-               kick_user(indx, user_list);
-             }
-           }else if(commandType == 4){
-             cleanup_users(user_list);
-             exit(-1);
-           }else if(commandType ==5){
+            if(commandType == 0){
+              int res = list_users(-1, user_list);
+              if(res != 0){
+                printf("error occurred in printing list\n" );
+              }
+            }else if(commandType == 1){
+              char kicking_user_name[MAX_USER_ID];
+              int foundName = extract_name(buf, kicking_user_name);
+              if(foundName == -1){
+                printf("Cannot find user name in input\n");
+              }else{
+                int indx = find_user_index(user_list, kicking_user_name);
+                write(user_list[indx].m_fd_to_user, "Admin kicked you", sizeof("Admin kicked you"));
+                if(indx != -1){
+                  kick_user(indx, user_list);
+                }else{
+                  printf("User you want to kick does not exist\n");
+                }
+              }
+            }else if(commandType == 4){
+              for(int kk = 0; kk < MAX_USER; kk++){
+                  if(user_list[kk].m_status == 0){
+                    write(user_list[kk].m_fd_to_user, "Admin exited", sizeof("Admin exited"));
+                  }
+              }
+              cleanup_users(user_list);
+              exit(-1);
+            }else if(commandType ==5){
               char send[MAX_MSG];
               sprintf(send,"admin : %s", buf );
               for(int kk = 0; kk < MAX_USER; kk++){
-                 if(user_list[kk].m_status == 0){
-
-                   int aa = write(user_list[kk].m_fd_to_user, send, strlen(send));
-
-                 }
-               }
-               memset(buf, '\0', MAX_MSG);
+                  if(user_list[kk].m_status == 0){
+                    write(user_list[kk].m_fd_to_user, send, strlen(send));
+                  }
+              }
+              memset(buf, '\0', MAX_MSG);
             }
          }
     }else {
-
       /************   Child process ********************/
       /********* child read from user ********/
       memset(buf, '\0', MAX_MSG);
       int readbytes2 = read(pipe_user_to_child[0], buf, MAX_MSG);
       if(readbytes2 >0){
         int resultWriret = write(pipe_SERVER_reading_from_child[1],buf, readbytes2);
+      } else if(readbytes2 == 0){
+        // User end of pipe closed. We need to close all pipe and let parent kick that user form user list
+        printf("User %s process is lost connection\n", user_id);
+        write(pipe_SERVER_reading_from_child[1], "\\exit", sizeof("\\exit"));
+        close(pipe_SERVER_writing_to_child[0]);
+        close(pipe_SERVER_reading_from_child[1]);
+        close(pipe_child_to_user[0]);
+        close(pipe_user_to_child[1]);
       }
       memset(buf, '\0', MAX_MSG);
 
       /********* child read from parent ********/
       int readbytes3 = read(pipe_SERVER_writing_to_child[0], buf, MAX_MSG);
-    //  printf("%d\n",readbytes3 );
       if(readbytes3 >0){
         int resultW2 = write(pipe_child_to_user[1],buf, readbytes3);
       }else if(readbytes3 == 0){
-        printf("child having 0 read\n" );
+        // server end of pipe is closed. So we close all pipes
         close(pipe_SERVER_writing_to_child[0]);
         close(pipe_SERVER_reading_from_child[1]);
 

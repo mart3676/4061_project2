@@ -3,7 +3,7 @@
 * date: 11/10/2018
 * name: Ganzorig Battur, Patrice Martineau, Raymond Holidjaja
 * id: battu010, mart3676, holid019
-* /
+*/
 
 The purpose of our program was to use multi-process architecture to create a local multi-party chat application using 3 different OS system concepts. It will have a single centralized server. Moreover, it will have one parent process and several child processes that each communicate with their associated user. 
 
